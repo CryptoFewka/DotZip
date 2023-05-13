@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>dotZip</title>
+  </head>
+  <body>
+    <h1>Lets Play Zip Archive!</h1>
+    <p>Grab one or more files or folders. We will create a zip archive with them.</p>
+    <input type="file" id="file-input" webkitdirectory>
+    <br><br>
+    <button id="dumb-idea-btn">Shove them in a zip!</button>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script>
+    <script>
+      const fileInput = document.getElementById('file-input');
+      const createZipBtn = document.getElementById('dumb-idea-btn');
+
+      createZipBtn.addEventListener('click', async () => {
+        const files = fileInput.files;
+        const zip = new JSZip();
+        const dt = new Date().toISOString().slice(0, 19).replace(/[-T]/g, "")
+        const filename = "dotZip_" + dt + ".zip";
+        // Add all selected files to the zip archive
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const content = await file.text();
+          zip.file(file.name, content);
+        }
+
+        // Generate a Blob of the zip archive
+        const blob = await zip.generateAsync({ type: 'blob' });
+
+        // Create a download link and trigger a download
+        const downloadUrl = URL.createObjectURL(blob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = downloadUrl;
+        downloadLink.download = filename;
+        downloadLink.click();
+      });
+    </script>
+  </body>
+</html>
