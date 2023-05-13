@@ -7,7 +7,7 @@
   <body>
     <h1>Lets Play Zip Archive!</h1>
     <p>Grab one or more files or folders. We will create a zip archive with them.</p>
-    <input type="file" id="file-input" multiple>
+    <input type="file" id="file-input" multiple webkitdirectory>
     <br><br>
     <button id="dumb-idea-btn">Shove them in a zip!</button>
 
@@ -17,15 +17,16 @@
       const createZipBtn = document.getElementById('dumb-idea-btn');
 
       createZipBtn.addEventListener('click', async () => {
-        const files = fileInput.files;
+        const files = await getFilesRecursive(fileInput.files);
         const zip = new JSZip();
         const dt = new Date().toISOString().slice(0, 19).replace(/[-T]/g, "")
         const filename = "dotZip_" + dt + ".zip";
+
         // Add all selected files to the zip archive
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
           const content = await file.text();
-          zip.file(file.name, content);
+          zip.file(file.webkitRelativePath, content);
         }
 
         // Generate a Blob of the zip archive
@@ -38,6 +39,48 @@
         downloadLink.download = filename;
         downloadLink.click();
       });
+
+      function getFilesRecursive(files, filelist) {
+        filelist = filelist || [];
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          if (file.type === "application/x-directory") {
+            getFilesRecursive(file.webkitGetAsEntry().createReader(), filelist);
+          } else {
+            filelist.push(file);
+          }
+        }
+        return Promise.all(filelist);
+      }
+
+      function getFilesRecursive(dirReader, filelist) {
+        filelist = filelist || [];
+        return new Promise((resolve, reject) => {
+          dirReader.readEntries((entries) => {
+            const promises = [];
+            for (let i = 0; i < entries.length; i++) {
+              const entry = entries[i];
+              if (entry.isFile) {
+                promises.push(new Promise((resolve, reject) => {
+                  entry.file((file) => {
+                    filelist.push(file);
+                    resolve();
+                  }, reject);
+                }));
+              } else if (entry.isDirectory) {
+                promises.push(getFilesRecursive(entry.createReader(), filelist));
+              }
+            }
+            Promise.all(promises).then(() => {
+              if (entries.length > 0) {
+                getFilesRecursive(dirReader, filelist).then(resolve, reject);
+              } else {
+                resolve(filelist);
+              }
+            }, reject);
+          }, reject);
+        });
+      }
     </script>
   </body>
 </html>
